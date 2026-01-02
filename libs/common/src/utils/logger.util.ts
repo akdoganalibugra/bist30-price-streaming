@@ -1,17 +1,17 @@
 /**
  * Structured Logger Utility
- * 
+ *
  * Provides JSON-formatted logging with level filtering based on LOG_LEVEL env var.
- * 
+ *
  * Levels: debug < info < warn < error
- * 
+ *
  * @example
  * import { Logger } from '@app/common/utils/logger.util';
- * 
+ *
  * const logger = new Logger('DataSourceService');
  * logger.info('Price generation started', { symbols: 30 });
  * logger.error('RabbitMQ connection failed', error);
- * 
+ *
  * Reference: specs/001-bist30-streaming-platform/spec.md (NFR-008, NFR-009)
  */
 
@@ -35,7 +35,7 @@ export class Logger {
 
   constructor(context: string) {
     this.context = context;
-    const envLevel = (process.env.LOG_LEVEL || 'info').toLowerCase();
+    const envLevel = (process.env.LOG_LEVEL || "info").toLowerCase();
     this.minLevel = LOG_LEVEL_MAP[envLevel] ?? LogLevel.INFO;
   }
 
@@ -52,13 +52,18 @@ export class Logger {
   }
 
   error(message: string, error?: Error | Record<string, any>): void {
-    const meta = error instanceof Error
-      ? { error: error.message, stack: error.stack }
-      : error;
+    const meta =
+      error instanceof Error
+        ? { error: error.message, stack: error.stack }
+        : error;
     this.log(LogLevel.ERROR, message, meta);
   }
 
-  private log(level: LogLevel, message: string, meta?: Record<string, any>): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    meta?: Record<string, any>,
+  ): void {
     if (level < this.minLevel) {
       return; // Skip if below min level
     }

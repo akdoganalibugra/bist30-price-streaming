@@ -1,14 +1,14 @@
 /**
  * Connection Retry Utility with Exponential Backoff
- * 
+ *
  * Implements exponential backoff strategy for retrying failed connections
  * to external services (RabbitMQ, Redis, MySQL).
- * 
+ *
  * @example
  * await connectWithRetry(async () => {
  *   await rabbitmqService.connect();
  * }, 10);
- * 
+ *
  * Reference: specs/001-bist30-streaming-platform/spec.md (NFR-006)
  */
 
@@ -28,7 +28,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
 
 /**
  * Execute a function with exponential backoff retry logic
- * 
+ *
  * @param fn - Async function to execute
  * @param options - Retry configuration
  * @returns Promise that resolves when function succeeds
@@ -47,7 +47,7 @@ export async function connectWithRetry(
       return; // Success!
     } catch (error) {
       attempt++;
-      
+
       if (attempt >= config.maxRetries) {
         throw new Error(
           `Connection failed after ${config.maxRetries} attempts: ${error.message}`,

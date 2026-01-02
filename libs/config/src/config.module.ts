@@ -1,10 +1,10 @@
-import { Module, Global } from '@nestjs/common';
-import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { ConfigService } from './config.service';
+import { Module, Global } from "@nestjs/common";
+import { ConfigModule as NestConfigModule } from "@nestjs/config";
+import { ConfigService } from "./config.service";
 
 /**
  * Global configuration module
- * 
+ *
  * Provides ConfigService across all applications and libraries.
  * Loads environment variables from .env file.
  */
@@ -13,7 +13,7 @@ import { ConfigService } from './config.service';
   imports: [
     NestConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ".env",
     }),
   ],
   providers: [ConfigService],
