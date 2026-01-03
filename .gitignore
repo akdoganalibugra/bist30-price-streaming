@@ -55,3 +55,4 @@ apps/customer-api/prisma/migrations/
 
 # k6 results
 tests/results/
+.env
