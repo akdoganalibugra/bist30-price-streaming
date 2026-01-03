@@ -4,7 +4,6 @@ import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [RedisModule],
-  providers: [RabbitMQConsumerService],
-  exports: [RabbitMQConsumerService],
+  controllers: [RabbitMQConsumerService],
 })
 export class RabbitMQConsumerModule {}
