@@ -12,7 +12,7 @@ async function bootstrap() {
   
   // Create hybrid application (HTTP + Microservice)
   const app = await NestFactory.create(AppModule, {
-    logger: false, // Use custom logger
+    logger: ['error', 'warn', 'log', 'debug'],
   });
 
   // Connect RabbitMQ microservice
