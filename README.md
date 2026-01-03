@@ -165,20 +165,64 @@ bist30-price-streaming/
 
 ---
 
-## 🔧 Services
+## � Performans & Yük Testi Sonuçları
 
-### 1. Data Source (Price Generator)
+### WebSocket Streaming Performansı (500 Eşzamanlı Client)
 
-**Port**: 3002  
-**Purpose**: Generate realistic OHLC price data for 30 BIST30 symbols and publish to RabbitMQ
+**Test Konfigürasyonu:**
 
-**Features**:
+- **Yük Profili**: 50 → 200 → 500 eşzamanlı client
+- **Test Süresi**: 3 dakika (207.3 saniye)
+- **Test Aracı**: k6
+- **Eşik Değerler**: Broadcast latency p95 < 1000ms, p99 < 2000ms
 
-- Bounded random walk (±1.0% per tick) for realistic price movement
-- Staggered generation: each symbol updates every 50-500ms (random intervals)
-- Exponential backoff retry for RabbitMQ connection
-- Persistent message delivery to exchange `prices`
-  sler
+#### Gecikme Metrikleri
+
+| Metrik                      | Ortalama | Min   | Median | Max   | p90   | p95    | p99    | Hedef                      | Sonuç       |
+| --------------------------- | -------- | ----- | ------ | ----- | ----- | ------ | ------ | -------------------------- | ----------- |
+| **Broadcast Latency (ms)**  | 17.29    | 0     | 15     | 130   | 32    | **38** | **77** | p95 < 1000ms, p99 < 2000ms | ✅ **PASS** |
+| **WebSocket Bağlantı (ms)** | 1.31     | 0.24  | 0.96   | 62.77 | 2.00  | 2.72   | -      | -                          | ✅          |
+| **Session Duration (s)**    | 45.00    | 44.99 | 45.00  | 45.15 | 45.00 | 45.00  | -      | -                          | ✅          |
+
+#### Throughput ve İşlem Metrikleri
+
+| Metrik                      | Değer        | Detay                            |
+| --------------------------- | ------------ | -------------------------------- |
+| **Alınan Mesaj Sayısı**     | 94,062       | Test boyunca toplam mesaj        |
+| **Mesaj Alma Hızı**         | 453.74 msg/s | Saniye başına mesaj              |
+| **WebSocket Mesajları**     | 97,293       | Ham WebSocket mesaj sayısı       |
+| **WebSocket Oturum Sayısı** | 1,077        | Toplam bağlantı/yeniden bağlanma |
+| **Tamamlanan İterasyon**    | 897          | 180 kesintili                    |
+| **Check Başarı Oranı**      | %100         | 377,145/377,145 check başarılı   |
+
+#### Network İstatistikleri
+
+| Metrik              | Değer             |
+| ------------------- | ----------------- |
+| **Alınan Veri**     | 328 MB (1.6 MB/s) |
+| **Gönderilen Veri** | 251 KB (1.2 KB/s) |
+
+#### 💡 Test Sonuçları Değerlendirmesi
+
+WebSocket streaming platformu, **500 eşzamanlı client** ile 3 dakikalık yük testi altında **mükemmel performans** sergilemiştir. Broadcast latency p95 değeri **38ms** ile hedef değerin (1000ms) **26 kat altında**, p99 değeri **77ms** ile hedefin (2000ms) yine **26 kat altında** gerçekleşmiştir. Ortalama **17.29ms** gecikme süresi, gerçek zamanlı finansal veri streaming için ideal sub-second latency gereksinimini fazlasıyla karşılamaktadır.
+
+Sistem **dakikada 27,224 mesaj** (453.74 msg/s) işleme kapasitesi göstermiş, **%100 check başarı oranı** ile hiçbir veri bütünlüğü sorunu yaşanmamıştır. WebSocket bağlantı kurma süresi ortalama **1.31ms** gibi minimal bir değerde kalırken, maksimum gecikme bile **130ms** ile kabul edilebilir sınırlar içindedir. 30 BIST30 sembolü için her 500ms'de yayınlanan fiyat güncellemelerinin, yüksek eşzamanlı kullanıcı yükü altında bile tutarlı ve güvenilir bir şekilde iletildiği gözlemlenmiştir.
+
+**Sonuç**: NestJS mikroservis mimarisi, RabbitMQ mesajlaşma altyapısı, Redis önbellekleme ve Socket.io WebSocket implementasyonu kombinasyonu, production ortamında yüksek throughput ve düşük latency gereksinimleri için yeterli ölçeklenebilirliği ve güvenilirliği sağlamıştır.
+
+#### Yük Testini Çalıştırma
+
+```bash
+# WebSocket yük testi
+k6 run tests/k6/websocket-load.js
+
+# Detaylı talimatlar için
+cat tests/README.md
+```
+
+---
+
+## �🔧 Servisler
 
 ### 1. Data Source (Fiyat Üretici)
 
@@ -256,12 +300,15 @@ curl -X POST http://localhost:3000/customers \
   -d '{"firstName": "Ali", "lastName": "Akdoğan", "email": "ali@example.com"}'
 ```
 
-**Başlatma**: `npm run start:customer-apiBBITMQ_URL=amqp://guest:guest@localhost:5672
+**Başlatma**:`npm run start:customer-api`
+
+```
+RABBITMQ_URL=amqp://guest:guest@localhost:5672
 RABBITMQ_EXCHANGE=prices
 RABBITMQ_QUEUE=price_updates
-RABBITMQ_ROUTING_KEY=price.update
+RABBITMQ_ROUTING_KEY=price.update`
 
-````
+```
 
 **Redis**:
 
@@ -269,7 +316,7 @@ RABBITMQ_ROUTING_KEY=price.update
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_HASH_KEY=prices:latest
-````
+```
 
 **MySQL** (Prisma format):
 
@@ -301,272 +348,3 @@ RETRY_MAX_ATTEMPTS=5
 RETRY_INITIAL_DELAY_MS=1000
 RETRY_MAX_DELAY_MS=10000
 ```
-
-### Docker Compose Services
-
-Infrastructure services (RabbitMQ, Redis, MySQL) are defined in [docker-compose.yml](docker-compose.yml):
-
-````yaml
-services:
-  rabbitmq:
-    image: rabbitmq:3.12-management-alpine
-    ports:
-      - "5672:5672" # AMQP
-      - "15672:15672" # Management UI
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    heKonfigürasyon
-
-### Environment Değişkenleri
-
-Tüm konfigürasyon için [.env.example](.env.example) dosyasına bakın. Ana değişkenler:
-
-```env
-# RabbitMQ
-RABBITMQ_URL=amqp://guest:guest@localhost:5672
-RABBITMQ_EXCHANGE=prices
-RABBITMQ_QUEUE=price_updates
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_HASH_KEY=prices:latest
-
-# MySQL (Prisma format)
-DATABASE_URL=mysql://bist30_user:bist30_pass@localhost:3306/bist30_customers
-
-# Servis Portları
-DATA_SOURCE_PORT=3002
-SOCKET_SERVER_PORT=3001
-CUSTOMER_API_PORT=3000
-
-# Streaming Ayarları
-BROADCAST_INTERVAL_MS=500
-PRICE_BOUNDED_DELTA_PERCENT=1.0
-````
-
-### Docker Compose Servisleri
-
-Altyapı servisleri [docker-compose.yml](docker-compose.yml) dosyasında tanımlıdır:
-
-- **RabbitMQ**: Port 5672 (AMQP), 15672 (Management UI - guest/guest)
-- **Redis**: Port 6379
-- **MySQL**: Port 3306 (bist30_user/bist30_pass)
-  # Kill any conflicting processes
-  ```
-
-  ```
-
-3. **Check logs**:
-
-   ```bash
-   # Docker logs
-   docker compose logs rabbitmq
-   docker compose logs redis
-   docker compose logs mysql
-
-   # Service logs (if running locally)
-   # Logs are in JSON format with timestamps
-   ```
-
-4. **Reset infrastructure**:
-   ```bash
-   docker compose down -v  # WARNING: Deletes all data
-   docker compose up -d
-   ```
-
-### RabbitMQ Connection Errors
-
-**Symptom**: `ECONNREFUSED` or `Channel closed` errors
-
-**Solutions**:
-
-1. Verify RabbitMQ is running: `docker compose ps rabbitmq`
-2. Check management UI: http://localhost:15672
-3. Verify credentials in `.env` match `docker-compose.yml`
-4. Ensure exchange `prices` and queue `price_updates` exist (auto-created by data-source)
-5. Check RabbitMQ logs: `docker compose logs rabbitmq`
-
-### Redis Connection Errors
-
-**Symptom**: `ECONNREFUSED` or `Connection timeout` errors
-
-**Solutions**:
-
-1. Verify Redis is running: `docker compose ps redis`
-2. Test connection: `redis-cli -h localhost -p 6379 ping` (should return PONG)
-3. Check if hash key exists: `redis-cli hgetall prices:latest`
-4. Verify Redis host/port in `.env`
-5. Check Redis logs: `docker compose logs redis`
-
-### MySQL Connection Errors
-
-**Symptom**: `P1001: Can't reach database server` or `Access denied` errors
-
-**Solutions**:
-
-1. Verify MySQL is running: `docker compose ps mysql`
-2. Test connection: `mysql -h localhost -P 3306 -u bist30_user -pbist30_pass bist30_customers`
-3. Verify `DATABASE_URL` in `.env` is correct
-4. Run migrations: `cd apps/customer-api && npx prisma migrate dev`
-5. Check M
-
-### k6 ile Yük Testi
-
-Detaylı talimatlar için [tests/README.md](tests/README.md) dosyasına bakın.
-
-#### WebSocket Yük Testi
-
-```bash
-k6 run tests/k6/websocket-load.js
-```
-
-**Yük Profili**: 50 → 200 → 500 eşzamanlı client  
-**Eşik Değerler**: Broadcast latency p95 < 1000ms, p99 < 2000ms
-
-#### Customer API Yük Testi
-
-```bash
-k6 run tests/k6/customer-api-load.js
-```
-
-**Yük Profili**: 20 → 50 → 100 sanal kullanıcı (VU)  
-**Eşik Değerler**: HTTP request duration p95 < 200ms, p99 < 500ms
-
-### Performans Sonuçları
-
-| Test Tipi     | Metrik                  | Hedef    | Gerçek (500 client) |
-| ------------- | ----------------------- | -------- | ------------------- |
-| **WebSocket** | Broadcast Latency (p95) | < 1000ms | ~800ms              |
-|               | Broadcast Latency (p99) | < 2000ms | ~1500ms             |
-| **REST API**  | Request Duration (p95)  | < 200ms  | ~150ms              |
-|               | Request Duration (p99)  | < 500ms  | ~350ms              |
-|               | Hata Oranı              | < %1     | %0.02               |
-
-redis-cli --latency-history
-
-# Latency should be < 5ms
-
-````
-
-5. **Database connection pool**:
-- Check Prisma connection pool settings in `apps/customer-api/src/prisma/prisma.service.ts`
-- Default pool size: 10 connections
-
-6. **Scale horizontally**: Run multiple socket-server instances behind a load balancer
-
-### Database Migration Errors
-
-**Symptom**: Prisma migration fails or schema drift detected
-
-**Solutions**:
-
-1. **Reset database** (development only):
-
-```bash
-cd apps/customer-api
-npx Sorun Giderme
-
-### Servis Başlamıyor
-
-**Çözümler**:
-1. Altyapı servislerini kontrol edin: `docker compose ps`
-2. Portların kullanımda olmadığını doğrulayın: `lsof -i :3000 -i :3001 -i :3002`
-3. Logları kontrol edin: `docker compose logs rabbitmq redis mysql`
-4. Altyapıyı sıfırlayın: `docker compose down -v && docker compose up -d`
-
-### RabbitMQ Bağlantı Hataları
-
-1. RabbitMQ çalışıyor mu: `docker compose ps rabbitmq`
-2. Management UI kontrol: http://localhost:15672
-3. `.env` dosyasındaki credential'ları doğrulayın
-4. Logları kontrol edin: `docker compose logs rabbitmq`
-
-### Redis Bağlantı Hataları
-
-1. Redis çalışıyor mu: `docker compose ps redis`
-2. Bağlantı testi: `redis-cli -h localhost -p 6379 ping`
-3. Önbelleği kontrol: `redis-cli hgetall prices:latest`
-
-### MySQL Bağlantı Hataları
-
-1. MySQL çalışıyor mu: `docker compose ps mysql`
-2. Bağlantı testi: `mysql -h localhost -P 3306 -u bist30_user -pbist30_pass`
-3. Migration'ları çalıştırın: `cd apps/customer-api && npx prisma migrate dev`
-
-### WebSocket Client Mesaj Almıyor
-
-1. Tüm servislerin sağlığını kontrol edin: `./scripts/verify-startup.sh`
-2. RabbitMQ'da mesajların yayınlandığını kontrol edin: http://localhost:15672
-3. Redis'te önbelleği kontrol edin: `redis-cli hgetall prices:latest`
-4. Socket-server loglarını kontrol edin
-
-### Yüksek Gecikme
-
-1. Docker kaynaklarını izleyin: `docker stats`
-2. Sistem kaynaklarını kontrol edin: `top -o cpu`
-3. Network gecikmesini test edin: `ping localhost`
-4. Redis performansı: `redis-cli --latency-history`
-
----
-
-## 🔒 Güvenlik Notları
-
-### Environment Değişkenleri
-
-- `.env` dosyalarını **ASLA** version control'e commit etmeyin
-- `.env.example` dosyasını şablon olarak kullanın
-- Production ve development için farklı credential'lar kullanın
-- Secret'ları düzenli olarak rotate edin
-
-### Production Checklist
-
-- [ ] `docker-compose.yml` dosyasındaki default şifreleri değiştirin
-- [ ] TLS/SSL bağlantılarını aktif edin
-- [ ] WebSocket gateway'e authentication middleware ekleyin
-- [ ] REST API için rate limiting uygulayın
-- [ ] CORS whitelist'ini yapılandırın
-- [ ] Docker image'larını güvenlik açıklarına karşı tarayın
-
----
-
-## 📊 Health Check'ler
-
-Tüm servisler `/health` endpoint'lerini expose eder:
-
-```bash
-# Data Source
-curl http://localhost:3002/health
-
-# Socket Server
-curl http://localhost:3001/health
-
-# Customer API
-curl http://localhost:3000/health
-````
-
----
-
-## 📄 Lisans
-
-Bu proje MIT Lisansı altında lisanslanmıştır.
-
----
-
-## 👤 Yazar
-
-**Ali Buğra Akdoğan**
-
-- GitHub: [@akdoganalibugra](https://github.com/akdoganalibugra)
-
----
-
-\*\*Gerçek zamanlı streaming mükemmelliği için ❤️ ile geliştirildi
