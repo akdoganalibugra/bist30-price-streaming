@@ -48,7 +48,7 @@ export class PriceGeneratorService implements OnApplicationBootstrap {
 
     setTimeout(() => {
       const ohlc = this.generateOHLC(symbol);
-      this.rabbitmqService.publish(ohlc);
+      this.rabbitmqService.publish('price_update', ohlc);
       this.scheduleNextUpdate(symbol); // Recursive scheduling
     }, interval);
   }
