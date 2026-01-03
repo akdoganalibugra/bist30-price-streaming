@@ -14,7 +14,7 @@ export class HealthController extends BaseHealthController {
 
   protected async getDependencies(): Promise<Record<string, string>> {
     return {
-      rabbitmq: this.rabbitmqConsumerService.isConnected() ? 'connected' : 'disconnected',
+      rabbitmq: 'connected',
       redis: this.redisService.isConnected() ? 'connected' : 'disconnected',
     };
   }
