@@ -16,7 +16,7 @@ export class CustomersService {
       const customer = await this.prisma.customer.create({
         data: createCustomerDto,
       });
-      this.logger.log(`Created customer: ${customer.uuid}`);
+      this.logger.info(`Created customer: ${customer.uuid}`);
       return customer;
     } catch (error) {
       // Prisma unique constraint violation
@@ -51,7 +51,7 @@ export class CustomersService {
         where: { uuid },
         data: updateCustomerDto,
       });
-      this.logger.log(`Updated customer: ${uuid}`);
+      this.logger.info(`Updated customer: ${uuid}`);
       return customer;
     } catch (error) {
       // Prisma record not found
@@ -71,7 +71,7 @@ export class CustomersService {
       const customer = await this.prisma.customer.delete({
         where: { uuid },
       });
-      this.logger.log(`Deleted customer: ${uuid}`);
+      this.logger.info(`Deleted customer: ${uuid}`);
       return customer;
     } catch (error) {
       // Prisma record not found
