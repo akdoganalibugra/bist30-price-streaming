@@ -17,26 +17,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     // Log queries in development
     if (process.env.NODE_ENV === 'development') {
-      // @ts-expect-error Prisma client type issue
-      this.$on('query', (e) => {
-        this.logger.log(`Query: ${e.query} | Params: ${e.params} | Duration: ${e.duration}ms`);
-      });
+      // Query logging disabled due to type issues in Prisma v5
+      // Enable with explicit types if needed
     }
   }
 
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('✅ Successfully connected to MySQL database');
+      this.logger.info('Successfully connected to MySQL database');
     } catch (error) {
-      this.logger.error('❌ Failed to connect to MySQL database', error);
+      this.logger.error('Failed to connect to MySQL database', error);
       throw error;
     }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    this.logger.log('Disconnected from MySQL database');
+    this.logger.info('Disconnected from MySQL database');
   }
 
   async healthCheck(): Promise<boolean> {
